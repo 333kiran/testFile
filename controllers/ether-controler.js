@@ -62,39 +62,61 @@ export const approvalMethod = async(req,res) => {
   }
 }
 
-export const depositMethod = async(req,res) => {
-  try{
-    const {tokenAdd,amount} = req.body;
-    const wardAmount = web3.utils.toBN(amount);
+export const depositMethod = async (req, res) => {
+  try {
+    const { tokenAdd, amount } = req.body;
+    const wadAmount = web3.utils.toBN(amount);
 
-   // Estimating the gas required for the transaction
-const gasLimit = await contract.methods.depositToken(tokenAdd,wardAmount).estimateGas({ from:accountAddress });
+    // Estimating the gas required for the transaction
+    const gasLimit = await contract.methods
+      .depositToken(tokenAdd, wadAmount)
+      .estimateGas({ from: accountAddress });
 
-// Retrieve the current gas price
-const gasPrice = await web3.eth.getGasPrice();
+    // Retrieve the current gas price
+    const gasPrice = await web3.eth.getGasPrice();
 
-const transactionData = contract.methods.depositToken(tokenAdd,wardAmount).encodeABI();
+    const transactionData = contract.methods
+      .depositToken(tokenAdd, wadAmount)
+      .encodeABI();
 
-const transactionObject = {
-  from: accountAddress,
-  to: contractAddress,
-  gas: gasLimit,
-  gasPrice: gasPrice,
-  data: transactionData,
-  value: wardAmount,
+    const transactionObject = {
+      from: accountAddress,
+      to: contractAddress,
+      gas: gasLimit,
+      gasPrice: gasPrice,
+      data: transactionData,
+      value: 0, // No need to send Ether in this transaction, so set to 0
+    };
+
+    const signedTx = await web3.eth.accounts.signTransaction(
+      transactionObject,
+      privateKey
+    );
+    console.log("signedTx =>", signedTx);
+
+    // Send the signed transaction
+    const receipt = await web3.eth.sendSignedTransaction(
+      signedTx.rawTransaction
+    );
+    console.log("receipt =>", receipt);
+
+    res
+      .status(200)
+      .json({ message: "Tokens deposited successfully", txHash: receipt.transactionHash });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
-const signedTx = await web3.eth.accounts.signTransaction(transactionObject, privateKey);
-console.log(" signedTx =>",signedTx);
-
-// Send the signed transaction
-const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
-console.log(" receipt =>",receipt);
-
-res.status(200).json({ message: 'Tokens deposited successfully', txHash: receipt.transactionHash });
-
+export const getTxtInfo = async(req,res) => {
+  try{
+      const { address } = req.query;
+      const info = await contract.methods.getUserTransactions(address).call();
+      console.log("info=>",info);
+      res.status(200).json({message:"your transaction info fetched successfully:",data:info})
   }catch(error){
-    console.log(error);
-        res.status(500).json({ error: error.message });
+      console.log(error);
+      res.status(500).json({ error: error.message });
   }
 }
